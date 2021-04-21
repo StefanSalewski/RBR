@@ -1,0 +1,26 @@
+= Rubberband routing of PCB traces
+:icons: font
+:imagesdir: http://ssalewski.de/tmp
+:source-highlighter: rouge
+:rouge-style: molokai
+
+== Fully experimental work with no real use!
+
+This is a port of my old initial version from
+http://ssalewski.de/Router.html.en
+to Nim language.
+
+Instead of using the CGAL library for the constrained delaunay triangulation and the
+CGAL Apollonius graph for determining the convex hull of disks, for both
+now pure Nim libs are used. And instead of a fibonacci queue from BOOST
+library as priority queue we now use the heapqueue from the Nim standard library.
+
+Of course this router is useless as its own, but it may become an important core component
+of a EDA (electronic design automation) tool.
+
+To compile the code, a slightly modified version of the CDT library and a
+QuickHullOfDisk module are necessary, both should ship to github in the next
+months.
+
+image::NimRouting1.png[]
+
