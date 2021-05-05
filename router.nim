@@ -61,9 +61,10 @@ import heapqueue
 import maxby
 import salewski
 import cdt/[dt, vectors, vertices, edges, types]
-import "../quickhulldisk/quickhulldisk"
-import "../quickhulldisk/convexhullofdisks"
-import "../quickhulldisk/circulardisk2d"
+#import "../quickhulldisk/quickhulldisk"
+#import "../quickhulldisk/convexhullofdisks"
+#import "../quickhulldisk/circulardisk2d"
+import quickhulldisk/[quickhulldisk, convexhullofdisks, circulardisk2d]
 
 const
   initVector = initVector3
@@ -268,6 +269,7 @@ type
     radius: float # radius of arc
     score: float # for sorting attached nets of a terminal by angle
     index: int # for sorting
+    #`ref`{.cursor.}: Step # also for sorting
     `ref`: Step # also for sorting
     rgt: bool # tangents of terminal for this step -- left or right side in forward direction
     outer: bool # do we use the outer lane at this terminal
@@ -523,7 +525,7 @@ proc sortAttachedNets(v: XVertex) = # by angle of total trace
   if v.attachedNets.len > 1:
     for n in items(v.attachedNets):
       assert(n.vertex == v)
-      n.index = uFullAngle(v, n).int * (if n.rgt: 1 else: -1) # u for FullAngle(), CAUTION: int?
+      n.index = (uFullAngle(v, n) * 1000).int * (if n.rgt: 1 else: -1) # u for FullAngle(), CAUTION: int?
     #v.attachedNets.sortByIt(it.index)
     v.attachedNets.sort do (x, y: Step) -> int:
       result = cmp(x.index, y.index)
@@ -556,12 +558,20 @@ proc sortAttachedNets(v: XVertex) = # by angle of total trace
           var unresolvedCombinations = false
           while gr.len > 1:
             #gr.map!{|el| (el.netDesc.flag == direction ? el.pstep : el.nstep)} # walk in one direction
+            for el in gr:
+              el.nstep.netDesc.flag = el.netDesc.flag
+              el.pstep.netDesc.flag = el.netDesc.flag
             gr.applyIt(if it.netDesc.flag == direction: it.pstep else: it.nstep) # walk in one direction
             for el in gr:
+              #assert el.nstep.ref != nil
+
               if el.netDesc.flag == direction:
                 el.`ref` = el.nstep.`ref`
+                assert el.ref != nil
               else:
                 el.ref = el.pstep.ref
+                echo el.netDesc.flag
+                assert el.ref != nil
             #gr.each{|el| el.ref = (el.netDesc.flag == direction ? el.nstep.ref : el.pstep.ref)}
             for el in gr:
               el.score = uFullAngle(v, el)
@@ -574,12 +584,13 @@ proc sortAttachedNets(v: XVertex) = # by angle of total trace
                 if a.score == NilFloat:
                   c = (if (b.rgt == b.ref.rgt): 1 else: -1)
                 elif b.score == NilFloat:
+                  echo a.ref != nil, "XXXXXXXXXXXXX"
                   c = (if (a.rgt == a.ref.rgt): -1 else: 1)
                 else:
                   if (a.score * a.netDesc.flag.float - b.score * b.netDesc.flag.float).abs < 1e-6: # type of flag is int
                     c = 0
                   else:
-                    c = ((a.score * (if a.ref.rgt: 1 else: -1)) <=> (b.score * (if b.ref.rgt: 1 else: -1)))
+                    c = -((a.score * (if a.ref.rgt: 1 else: -1)) <=> (b.score * (if b.ref.rgt: 1 else: -1)))
                 if c != 0:
                   if final: # indicate final relation
                     c *= 2
@@ -1275,6 +1286,9 @@ proc newConvexVertices(vertices: var seq[XVertex]; prev, nxt, hv1, hv2: XVertex)
   if vertices.len > 0:
     echo vertices
     findHullDisks(qhd, s, res)
+    if res.len > 1:
+      assert res[0] == res[^1]
+      res.setLen(res.high)
   var h: seq[int]
   for el in res:
     h.add(el.get_ID)
@@ -1425,7 +1439,7 @@ proc dijkstra(r: Router; startNode: Region; endNodeName: string; netDesc: NetDes
     if popom0 != nil:
       popomv = popom0.vertex
     if (v.vertex.name == endNodeName) and v.incident: # reached destination -- check if we touched a vertex
-      echo "reached destination"
+      echo "reached destination ", minOldDistance[3]
       let hhht: (float, float, float, float) = getTangents(uu.vertex.x, uu.vertex.y, hhh, prevRgt, v.vertex.x, v.vertex.y, 0, false) # last two arguments are arbitrary
       var blocked = false
       for el in uu.vertex.neighbors & v.vertex.neighbors:
@@ -1557,21 +1571,25 @@ proc dijkstra(r: Router; startNode: Region; endNodeName: string; netDesc: NetDes
           if uvBlocked[(if curRgt: 1 else: 0)] and blockingVertex != w.vertex: break blocked
           #squeeze = lcuts.inject(0){|sum, el| if (h = @newcuts[v.vertex, el].squeezeStrength(netDesc.traceWidth, netDesc.traceClearance)) >= MBD; break h end; sum + h}
           var sum = 0.0
-          for el in lcuts:
-            var h = squeezeStrength(r.newcuts[(v.vertex, el)], netDesc.traceWidth, netDesc.traceClearance)
+          for el in lcuts: # caution: this can force use of outer late!
+            var h = squeezeStrength(r.newcuts[(v.vertex, el)], netDesc.traceWidth, netDesc.traceClearance) / 88
             sum += h
+            #if h > sum: sum = h
             if sum >= MBD: break
-          var squeeze = sum
+
+          var squeeze = sum * 1
           if squeeze >= MBD.float: break blocked
           if (u != startNode) and (curRgt != prevRgt):
-            squeeze += r.newcuts[(v.vertex, u.vertex)].squeezeStrength(netDesc.traceWidth, netDesc.traceClearance)# if (u != startNode) && (curRgt != prevRgt)
+            squeeze += r.newcuts[(v.vertex, u.vertex)].squeezeStrength(netDesc.traceWidth, netDesc.traceClearance) + 0 * AVD # if (u != startNode) && (curRgt != prevRgt)
+            #squeeze = 0 * AVD
           if squeeze >= MBD: break blocked
           let hhh = r.newcuts.getOrDefault((w.vertex, u.vertex), nil) # looking for shorter paths
           if true:#hhh != nil:
             #let nd = (newDistance + distances[pom] + hhh.cap) / 2
-            let nd = hypot(w.vertex.x - u.vertex.x, w.vertex.y - u.vertex.y) + distances[pom]
+            let nd = (hypot(w.vertex.x - u.vertex.x, w.vertex.y - u.vertex.y) + distances[pom] + 0 * newDistance) / 1
+
             if nd < newDistance:
-              discard#newDistance = [nd, minOldDistance[3]].max
+              newDistance = [nd, minOldDistance[3]].max
           else:
             if lcuts.len > 0: # can (only) occur for outer vertices of PCB rectangle
               #let nv = lcuts.minBy{|el| r.newcuts[v.vertex, el].cap}
@@ -1616,13 +1634,14 @@ proc dijkstra(r: Router; startNode: Region; endNodeName: string; netDesc: NetDes
           #squeeze = lcuts.inject(0){|sum, el| if (h = @newcuts[v.vertex, el].squeezeStrength(netDesc.traceWidth, netDesc.traceClearance)) >= MBD; break h end; sum + h}
           var sum = 0.0
           for el in lcuts:
-            var h = squeezeStrength(r.newcuts[(v.vertex, el)], netDesc.traceWidth, netDesc.traceClearance)
+            var h = squeezeStrength(r.newcuts[(v.vertex, el)], netDesc.traceWidth, netDesc.traceClearance) / 1
             sum += h
             if sum >= MBD: break
           var squeeze = sum
           if squeeze >= MBD: break blocked
           if (u != startNode) and (curRgt != prevRgt):
-            squeeze += r.newcuts[(v.vertex, u.vertex)].squeezeStrength(netDesc.traceWidth, netDesc.traceClearance)# if (u != startNode) && (curRgt != prevRgt)
+            squeeze += r.newcuts[(v.vertex, u.vertex)].squeezeStrength(netDesc.traceWidth, netDesc.traceClearance) + 4 * AVD# if (u != startNode) && (curRgt != prevRgt)
+            #squeeze = 4 * AVD
           if squeeze >= MBD: break blocked
           if uvBlocked[(if curRgt: 1 else: 0)] and blockingVertex != w.vertex:
             break blocked
@@ -1635,7 +1654,7 @@ proc dijkstra(r: Router; startNode: Region; endNodeName: string; netDesc: NetDes
               break blocked
             if not (el.nstep != nil and el.pstep != nil) and (curRgt != prevRgt) and (el.vertex == u.vertex):
               break blocked
-          if curRgt != prevRgt:#
+          if false:#curRgt != prevRgt:#
             newDistance += AVD# if curRgt != prevRgt # TODO fix vertex size
           newDistance += squeeze
           if not distances.hasKey(wVXRgt) or distances[wVXRgt] > newDistance:
@@ -2249,7 +2268,7 @@ proc main() =
   r.setColor(1, 0, 0, 0.7)
   r.setLineWidth(1200)
   # [0,1,2,3,4,5,6,7,8,9].each{|i|
-  for i in [6, 7, 8, 9]: # [3, 4, 5, 6, 7]:#,1,2,3,4,5,6]:#,7,8,9]:
+  for i in [6, 7, 8, 9]:#, 8, 9]: # [3, 4, 5, 6, 7]:#,1,2,3,4,5,6]:#,7,8,9]:
     r.setColor(col[i mod 5][0], col[i mod 5][1], col[i mod 5][2], 0.4)
     #discard r.route(strutils.parseInt(paramStr(1)))
     discard r.route(i)

@@ -16,11 +16,19 @@ now pure Nim libs are used. And instead of a fibonacci queue from BOOST
 library as priority queue we now use the heapqueue from the Nim standard library.
 
 Of course this router is useless as its own, but it may become an important core component
-of a EDA (electronic design automation) tool.
+of an EDA (electronic design automation) tool.
 
-To compile the code, a slightly modified version of the CDT library and a
-QuickHullOfDisk module are necessary, both should ship to github in the next
-months.
+For compiling the code you need
+
+https://github.com/StefanSalewski/cdt2
+
+https://github.com/StefanSalewski/QuickhullDisk
+
+CDT2 is a variant of CDT with a modified, more OOP style API.
+
+If you compiled router.nim you can run it with plain ./router without arguments
+or with a numeric argument. A PNG file showing the rubberband traces
+is created in the current directory.
 
 image::NimRouting1.png[]
 
