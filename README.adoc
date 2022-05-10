@@ -32,25 +32,18 @@ is created in the current directory.
 
 == Detailed instructions for testing
 
+----
 nimble install gintro
-
 nimble install itertools
-
 nimble install https://github.com/stefansalewski/QuickHullDisk.git
-
 nimble install https://github.com/stefansalewski/cdt2.git
-
 git clone https://github.com/stefansalewski/RBR.git
-
 cd RBR
-
 nim c router.nim
-
 ./router
-
 ./router 13
-
 eog pig13.png
+----
 
 image::NimRouting1.png[]
 
