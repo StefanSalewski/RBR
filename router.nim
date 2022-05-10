@@ -60,7 +60,8 @@ from itertools import chunked, windowed
 import heapqueue
 import maxby
 import salewski
-import cdt/[dt, vectors, vertices, edges, types]
+#import cdt/[dt, vectors, vertices, edges, types]
+import cdt2/[dt, vectors, vertices, edges, types]
 #import "../quickhulldisk/quickhulldisk"
 #import "../quickhulldisk/convexhullofdisks"
 #import "../quickhulldisk/circulardisk2d"
@@ -318,7 +319,9 @@ proc newXVertex(x: float = 0, y: float = 0, r: float = Pin_Radius, c: float = Cl
   v.name = ""
   return v
 
-proc vertexAllocProc: XVertex =
+
+# proc vertexAllocProc: XVertex = # was working with older compiler versions
+proc vertexAllocProc: Vertex = # needed for compiler version >= 1.6
   result = newXVertex()
 
 proc hash(vt: Region): Hash =
