@@ -47,3 +47,11 @@ eog pig13.png
 
 image::NimRouting1.png[]
 
+=== Layer assignment example
+
+The Nim version of the layer-assignments works as well already, so together with SDT for board creation, a
+real EDA tool would be possible. Well, for a useful tool, maybe 3000 hours of work may be still needed, the
+Gerber export is still missing completely. But it is not impossible.
+
+image::LANimpic.png[]
+
